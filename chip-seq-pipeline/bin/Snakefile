@@ -1,0 +1,143 @@
+#! /usr/bin/env bash
+## Snakefile
+####################
+#from os import listdir
+#print(listdir())
+import glob
+import re
+
+BASE_DIR = workflow.basedir + "/../"
+
+## find the samples in the fastq directory. 
+fastqs = glob.glob("fastq/*.fastq*")
+SAMPLES = [re.sub("fastq/(.+).fastq.*$","\\1",a) for a in fastqs]
+FASTQ_DICT = dict(zip(SAMPLES,fastqs))
+print("Found samples:")
+print(SAMPLES)
+## dependent programs
+MARKDUP=BASE_DIR+"dependencies/picard.jar MarkDuplicates"
+PHANTOMPEAKTOOL = BASE_DIR + "dependencies/run_spp_nodups.R"
+WIG2BIGWIG=BASE_DIR + "dependencies/wigToBigWig"
+
+## global variables
+GENOME = config["GENOME"]
+BWA_INDEX_NAME = config["BWA_INDEX_PATH"]+GENOME+ ".fa"
+#BWA_INDEX_NAME = "/mnt/silencer2/share/bwa_indices/"+GENOME+".fa"
+MAPQ_THRESH = "30"
+NREADS= "15000000"
+
+rule vanilla:
+    input: 
+        expand("bigWig/{sample}.filt.nodup.srt.bw", sample=SAMPLES),
+        expand("bam/{sample}.filt.nodup.srt.bam", sample=SAMPLES),
+        expand("qc/{sample}.filt.nodup.sample."+str(int(NREADS)/1000000)+".SE.tagAlign.gz.cc.qc",sample=SAMPLES)
+
+
+rule bwa_map:
+    input: 
+        lambda wildcards: FASTQ_DICT[wildcards.sample]
+        #"fastq/{sample}.fastq.bz2"
+    output:
+        raw = temp ("bam/{sample}.raw.srt.bam"),
+        filt = temp("bam/{sample}.filt.srt.bam"),
+        sai = temp("bam/{sample}.raw.sai"),
+        raw_qc = "qc/{sample}.raw.flagstat.qc",
+        filt_qc = "qc/{sample}.filt.flagstat.qc"
+    log: 
+        "logs/bwa_map/{sample}.log"
+    threads: 6
+    shell:
+       # "bwa aln -q 5 -l 32 -k 2 -t {threads} {BWA_INDEX_NAME} <( bzcat {input} )"
+       # " > {output.sai} 2> {log};"
+       # "bwa samse {BWA_INDEX_NAME} {output.sai} <(bzcat {input}) 2>> {log}|"
+        "bash {BASE_DIR}/bin/bwa_aln_fmt_autodetect.sh {threads} {BWA_INDEX_NAME} {input}"
+        " {output.sai} {log}|"
+        "samtools view -@ {threads} -Su - |"
+        "samtools sort -@ {threads} -m 4G - -T {wildcards.sample} -o {output.raw};"
+        "samtools flagstat {output.raw} > {output.raw_qc};"
+        "samtools view -@ {threads} -F 1804 -q {MAPQ_THRESH} -b {output.raw} > {output.filt};"
+        "samtools flagstat {output.filt} > {output.filt_qc}"
+
+rule bam_markdup:
+    input:
+        bam = "bam/{sample}.filt.srt.bam",
+        qc = "qc/{sample}.filt.flagstat.qc"
+    output:
+        bam = temp("bam/{sample}.dupmark.bam"),
+        qc = "qc/{sample}.dup.flagstat.qc"
+    log: 
+        "logs/markdup/{sample}.markdup.log"
+    threads: 3
+    shell: 
+        "java -Xmx12G -XX:ParallelGCThreads=3 -jar {MARKDUP} TMP_DIR=tmp/{wildcards.sample} INPUT={input.bam} OUTPUT={output.bam} METRICS_FILE={output.qc} VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false 2> {log}"
+
+rule bam_finalize:
+    input:
+        bam = "bam/{sample}.dupmark.bam",
+        qc = "qc/{sample}.dup.flagstat.qc"
+    output:
+        bam = "bam/{sample}.filt.nodup.srt.bam",
+        stat = "qc/{sample}.filt.nodup.srt.flagstat.qc",
+        pbc = "qc/{sample}.filt.nodup.srt.pbc.qc"
+    threads: 1
+    shell:
+        "samtools view -F 1804 -b {input.bam} > {output.bam};"
+        "samtools index {output.bam};"
+        "samtools flagstat {output.bam} > {output.stat};"
+        "bedtools bamtobed -i {input.bam} |"
+        "awk 'BEGIN{{OFS=\"\\t\"}}{{print $1,$2,$3,$6}}' |"
+        "grep -v 'chrM' | sort -T tmp/{wildcards.sample} | uniq -c |"
+        "awk 'BEGIN{{mt=0;m0=0;m1=0;m2=0}} ($1==1){{m1=m1+1}} ($1==2){{m2=m2+1}}"
+        "{{m0=m0+1}}{{mt=mt+$1}} END{{printf\"%d\\t%d\\t%d\\t%d\\t%f\\t%f\\t%f\\n\","
+        "mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}}' > {output.pbc}"
+
+rule phantom:
+    input:
+        bam = "bam/{sample}.filt.nodup.srt.bam"
+    output: 
+        tag_align = temp("{sample}.filt.nodup.srt.SE.tagAlign.gz"),
+        subsample = temp("{sample}.filt.nodup.sample."+str(int(NREADS)/1000000)+".SE.tagAlign.gz"),
+        plot = "qc/{sample}.filt.nodup.sample."+str(int(NREADS)/1000000)+".SE.tagAlign.gz.cc.plot.pdf",
+        cc = "qc/{sample}.filt.nodup.sample."+str(int(NREADS)/1000000)+".SE.tagAlign.gz.cc.qc",
+        cc_temp = temp("qc/{sample}.cc.temp")
+    log: 
+        "logs/phantompeak/{sample}.phantom.log"
+    threads: 1
+    shell: 
+        "bedtools bamtobed -i {input.bam} | awk 'BEGIN{{OFS=\"\\t\"}}{{$4=\"N\";$5=\"1000\";print $0}}' | gzip -c > {output.tag_align};"
+        "zcat {output.tag_align} | grep -v \"chrM\" | shuf -n {NREADS} |"
+        "gzip -c > {output.subsample};"
+        "Rscript {PHANTOMPEAKTOOL} -c={output.subsample} -filtchr=chrM "
+        "-savp={output.plot} -out={output.cc} -tmpdir=tmp/{wildcards.sample} -rf &> {log};"
+        "sed -r 's/,[^\\t]+//g' {output.cc} > {output.cc_temp};"
+        "cp {output.cc_temp} {output.cc}"
+
+rule bam2bw:
+    input: 
+        "bam/{sample}.filt.nodup.srt.bam"
+    output:
+        gs = temp("bigWig/{sample}.filt.nodup.srt.gs"),
+        bw = "bigWig/{sample}.filt.nodup.srt.bw"
+    threads: 1
+    shell:
+        "ext_len=$(awk '{{print $10;exit}}' <(samtools view {input})|"
+        "awk '{{print 300-length}}');"
+	"sca=$(samtools view {input} | wc -l | awk '{{print (1000000/$1);}}');"
+        "samtools view -H {input} | awk '$1 == \"@SQ\" {{OFS=\"\\t\";print $2,$3}}' - | sed 's/.N://g' > {output.gs};"
+        "samtools view -b {input} | bedtools bamtobed |"
+        "bedtools slop -s -l 0 -r $ext_len -i stdin -g {output.gs} |"
+        "bedtools genomecov -g {output.gs} -i stdin -bg -scale $sca |"
+        "{WIG2BIGWIG} stdin {output.gs} {output.bw}"
+
+#rule clean: 
+#    """ cleaning up temperory files """
+
+#rule lastqc:
+#    input:
+#        expand("qc/{sample}.qc",sample=SAMPLES)
+#    output:
+#        "qc/qc.txt"
+#    threads: 1
+#    shell:
+#        "echo done"
+        

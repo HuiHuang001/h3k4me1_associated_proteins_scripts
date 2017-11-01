@@ -1,0 +1,1 @@
+java -Xmx12G -XX:ParallelGCThreads=3 -jar /home/huh025/chip-seq-pipeline/bin/../dependencies/picard.jar MarkDuplicates TMP_DIR=tmp/test INPUT=bam/test.filt.srt.bam OUTPUT=bam/test.dupmark.bam METRICS_FILE=qc/test.dup.flagstat.qc VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false 2> logs/markdup/test.markdup.log

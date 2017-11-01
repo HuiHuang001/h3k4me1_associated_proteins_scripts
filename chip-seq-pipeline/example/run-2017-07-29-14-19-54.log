@@ -1,0 +1,58 @@
+Sat Jul 29 14:19:55 PDT 2017 # Analysis Began
+Provided cluster nodes: 1000
+Job counts:
+	count	jobs
+	1	bam2bw
+	1	bam_finalize
+	1	bam_markdup
+	1	phantom
+	1	vanilla
+	5
+
+rule bam_markdup:
+    input: qc/test.filt.flagstat.qc, bam/test.filt.srt.bam
+    output: qc/test.dup.flagstat.qc, bam/test.dupmark.bam
+    log: logs/markdup/test.markdup.log
+    jobid: 4
+    wildcards: sample=test
+    threads: 3
+
+java -Xmx12G -XX:ParallelGCThreads=3 -jar /home/shz254/Pipelines/chip-seq-pipeline/bin/../dependencies/picard.jar MarkDuplicates TMP_DIR=tmp/test INPUT=bam/test.filt.srt.bam OUTPUT=bam/test.dupmark.bam METRICS_FILE=qc/test.dup.flagstat.qc VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false 2> logs/markdup/test.markdup.log
+Waiting at most 5 seconds for missing files.
+Exception in thread Thread-1:
+Traceback (most recent call last):
+  File "/home/shz254/py34env/lib/python3.4/site-packages/snakemake/dag.py", line 319, in check_and_touch_output
+    wait_for_files(expanded_output, latency_wait=wait)
+  File "/home/shz254/py34env/lib/python3.4/site-packages/snakemake/io.py", line 381, in wait_for_files
+    latency_wait, "\n".join(get_missing())))
+OSError: Missing files after 5 seconds:
+qc/test.dup.flagstat.qc
+bam/test.dupmark.bam
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/opt/python/lib/python3.4/threading.py", line 921, in _bootstrap_inner
+    self.run()
+  File "/opt/python/lib/python3.4/threading.py", line 869, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/shz254/py34env/lib/python3.4/site-packages/snakemake/executors.py", line 568, in _wait_for_jobs
+    self.finish_job(active_job.job)
+  File "/home/shz254/py34env/lib/python3.4/site-packages/snakemake/executors.py", line 475, in finish_job
+    super().finish_job(job, upload_remote=False)
+  File "/home/shz254/py34env/lib/python3.4/site-packages/snakemake/executors.py", line 153, in finish_job
+    super().finish_job(job, upload_remote=upload_remote, ignore_missing_output=ignore_missing_output)
+  File "/home/shz254/py34env/lib/python3.4/site-packages/snakemake/executors.py", line 111, in finish_job
+    self.dag.check_and_touch_output(job, wait=self.latency_wait, ignore_missing_output=ignore_missing_output)
+  File "/home/shz254/py34env/lib/python3.4/site-packages/snakemake/dag.py", line 323, in check_and_touch_output
+    "wait time with --latency-wait.", rule=job.rule)
+snakemake.exceptions.MissingOutputException: Missing files after 5 seconds:
+qc/test.dup.flagstat.qc
+bam/test.dupmark.bam
+This might be due to filesystem latency. If that is the case, consider to increase the wait time with --latency-wait.
+
+Terminating processes on user request.
+Will exit after finishing currently running jobs.
+Removing output files of failed job bam_markdup since they might be corrupted:
+qc/test.dup.flagstat.qc, bam/test.dupmark.bam
+Sat Jul 29 14:23:54 PDT 2017 # Analysis finished

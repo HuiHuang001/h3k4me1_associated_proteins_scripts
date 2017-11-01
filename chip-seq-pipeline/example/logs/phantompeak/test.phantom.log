@@ -1,0 +1,42 @@
+################
+ChIP data: test.filt.nodup.sample.15.0.SE.tagAlign.gz 
+Control data: NA 
+strandshift(min): -500 
+strandshift(step): 5 
+strandshift(max) 1500 
+user-defined peak shift NA 
+exclusion(min): 10 
+exclusion(max): NaN 
+num parallel nodes: NA 
+FDR threshold: 0.01 
+NumPeaks Threshold: NA 
+Output Directory: . 
+narrowPeak output file name: NA 
+regionPeak output file name: NA 
+Rdata filename: NA 
+plot pdf filename: qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.plot.pdf 
+result filename: qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc 
+Overwrite files?: TRUE
+
+Decompressing ChIP file
+Loading required package: caTools
+Warning message:
+package ‘caTools’ was built under R version 3.2.3 
+Reading ChIP tagAlign/BAM file test.filt.nodup.sample.15.0.SE.tagAlign.gz 
+opened tmp/test/test.filt.nodup.sample.15.0.SE.tagAlign3c282e0533ef
+done. read 205689 fragments
+ChIP data read length 51 
+[1] TRUE
+Calculating peak characteristics
+Minimum cross-correlation value 0.00352946 
+Minimum cross-correlation shift 1500 
+Top 3 cross-correlation values 0.00534587858965651,0.00524878469975814,0.00507540594867042 
+Top 3 estimates for fragment length 210,220,245 
+Window half size 830 
+Phantom peak location 45 
+Phantom peak Correlation 0.00495865 
+Normalized Strand cross-correlation coefficient (NSC) 1.514645 
+Relative Strand Cross correlation Coefficient (RSC) 1.270942 
+Phantom Peak Quality Tag 1 
+null device 
+          1 

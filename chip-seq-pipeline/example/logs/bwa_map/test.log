@@ -1,0 +1,23 @@
+[bwa_aln] 17bp reads: max_diff = 2
+[bwa_aln] 38bp reads: max_diff = 3
+[bwa_aln] 64bp reads: max_diff = 4
+[bwa_aln] 93bp reads: max_diff = 5
+[bwa_aln] 124bp reads: max_diff = 6
+[bwa_aln] 157bp reads: max_diff = 7
+[bwa_aln] 190bp reads: max_diff = 8
+[bwa_aln] 225bp reads: max_diff = 9
+[bwa_read_seq] 0.0% bases are trimmed.
+[bwa_aln_core] calculate SA coordinate... 47.76 sec
+[bwa_aln_core] write to the disk... 0.03 sec
+[bwa_aln_core] 250000 sequences have been processed.
+[main] Version: 0.7.13-r1126
+[main] CMD: bwa aln -q 5 -l 32 -k 2 -t 6 /oasis/tscc/scratch/bil022/HiC/ref/hg19.fa /dev/fd/63
+[main] Real time: 28.732 sec; CPU: 52.008 sec
+[bwa_read_seq] 0.0% bases are trimmed.
+[bwa_aln_core] convert to sequence coordinate... 5.01 sec
+[bwa_aln_core] refine gapped alignments... 1.10 sec
+[bwa_aln_core] print alignments... 0.63 sec
+[bwa_aln_core] 250000 sequences have been processed.
+[main] Version: 0.7.13-r1126
+[main] CMD: bwa samse /oasis/tscc/scratch/bil022/HiC/ref/hg19.fa bam/test.raw.sai /dev/fd/63
+[main] Real time: 26.612 sec; CPU: 7.124 sec

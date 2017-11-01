@@ -1,0 +1,41 @@
+Sat Jul 29 13:54:35 PDT 2017 # Analysis Began
+Provided cluster nodes: 1000
+Job counts:
+	count	jobs
+	1	bam2bw
+	1	bam_finalize
+	1	bam_markdup
+	1	bwa_map
+	1	phantom
+	1	vanilla
+	6
+
+rule bwa_map:
+    input: fastq/test.fastq.bz2
+    output: bam/test.filt.srt.bam, qc/test.raw.flagstat.qc, bam/test.raw.srt.bam, bam/test.raw.sai, qc/test.filt.flagstat.qc
+    log: logs/bwa_map/test.log
+    jobid: 5
+    wildcards: sample=test
+    threads: 6
+
+bash /home/shz254/Pipelines/chip-seq-pipeline/bin/..//bin/bwa_aln_fmt_autodetect.sh 6 /oasis/tscc/scratch/bil022/HiC/ref/hg19.fa fastq/test.fastq.bz2 bam/test.raw.sai logs/bwa_map/test.log|samtools view -@ 6 -Su - |samtools sort -@ 6 -m 4G - -T test -o bam/test.raw.srt.bam;samtools flagstat bam/test.raw.srt.bam > qc/test.raw.flagstat.qc;samtools view -@ 6 -F 1804 -q 30 -b bam/test.raw.srt.bam > bam/test.filt.srt.bam;samtools flagstat bam/test.filt.srt.bam > qc/test.filt.flagstat.qc
+Removing temporary output file bam/test.raw.srt.bam.
+Removing temporary output file bam/test.raw.sai.
+Finished job 5.
+1 of 6 steps (17%) done
+
+rule bam_markdup:
+    input: qc/test.filt.flagstat.qc, bam/test.filt.srt.bam
+    output: qc/test.dup.flagstat.qc, bam/test.dupmark.bam
+    log: logs/markdup/test.markdup.log
+    jobid: 4
+    wildcards: sample=test
+    threads: 3
+
+java -Xmx12G -XX:ParallelGCThreads=3 -jar /home/shz254/Pipelines/chip-seq-pipeline/bin/../dependencies/picard.jar MarkDuplicates TMP_DIR=tmp/test INPUT=bam/test.filt.srt.bam OUTPUT=bam/test.dupmark.bam METRICS_FILE=qc/test.dup.flagstat.qc VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true REMOVE_DUPLICATES=false 2> logs/markdup/test.markdup.log
+Error in job bam_markdup while creating output files qc/test.dup.flagstat.qc, bam/test.dupmark.bam.
+ClusterJobException in line 61 of /home/shz254/Pipelines/chip-seq-pipeline/bin/Snakefile:
+Error executing rule bam_markdup on cluster (jobid: 4, external: 9277388.tscc-mgr.local, jobscript: /home/shz254/Pipelines/chip-seq-pipeline/example/.snakemake/tmp.ux8jyb4c/bam_markdup.4.pbs). For detailed error see the cluster log.
+Job failed, going on with independent jobs.
+Exiting because a job execution failed. Look above for error message
+Sat Jul 29 13:59:08 PDT 2017 # Analysis finished

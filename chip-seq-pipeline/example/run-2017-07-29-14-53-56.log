@@ -1,0 +1,41 @@
+Sat Jul 29 14:53:57 PDT 2017 # Analysis Began
+Provided cluster nodes: 1000
+Job counts:
+	count	jobs
+	1	bam2bw
+	1	phantom
+	1	vanilla
+	3
+
+rule bam2bw:
+    input: bam/test.filt.nodup.srt.bam
+    output: bigWig/test.filt.nodup.srt.bw, bigWig/test.filt.nodup.srt.gs
+    jobid: 1
+    wildcards: sample=test
+
+ext_len=$(awk '{print $10;exit}' <(samtools view bam/test.filt.nodup.srt.bam)|awk '{print 300-length}');sca=$(samtools view bam/test.filt.nodup.srt.bam | wc -l | awk '{print (1000000/$1);}');samtools view -H bam/test.filt.nodup.srt.bam | awk '$1 == "@SQ" {OFS="\t";print $2,$3}' - | sed 's/.N://g' > bigWig/test.filt.nodup.srt.gs;samtools view -b bam/test.filt.nodup.srt.bam | bedtools bamtobed |bedtools slop -s -l 0 -r $ext_len -i stdin -g bigWig/test.filt.nodup.srt.gs |bedtools genomecov -g bigWig/test.filt.nodup.srt.gs -i stdin -bg -scale $sca |/home/huh025/chip-seq-pipeline/bin/../dependencies/wigToBigWig stdin bigWig/test.filt.nodup.srt.gs bigWig/test.filt.nodup.srt.bw
+
+rule phantom:
+    input: bam/test.filt.nodup.srt.bam
+    output: test.filt.nodup.sample.15.0.SE.tagAlign.gz, qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc, qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.plot.pdf, test.filt.nodup.srt.SE.tagAlign.gz, qc/test.cc.temp
+    log: logs/phantompeak/test.phantom.log
+    jobid: 2
+    wildcards: sample=test
+
+bedtools bamtobed -i bam/test.filt.nodup.srt.bam | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > test.filt.nodup.srt.SE.tagAlign.gz;zcat test.filt.nodup.srt.SE.tagAlign.gz | grep -v "chrM" | shuf -n 15000000 |gzip -c > test.filt.nodup.sample.15.0.SE.tagAlign.gz;Rscript /home/huh025/chip-seq-pipeline/bin/../dependencies/run_spp_nodups.R -c=test.filt.nodup.sample.15.0.SE.tagAlign.gz -filtchr=chrM -savp=qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.plot.pdf -out=qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc -tmpdir=tmp/test -rf &> logs/phantompeak/test.phantom.log;sed -r 's/,[^\t]+//g' qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc > qc/test.cc.temp;cp qc/test.cc.temp qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc
+Removing temporary output file bigWig/test.filt.nodup.srt.gs.
+Finished job 1.
+1 of 3 steps (33%) done
+Removing temporary output file qc/test.cc.temp.
+Removing temporary output file test.filt.nodup.sample.15.0.SE.tagAlign.gz.
+Removing temporary output file test.filt.nodup.srt.SE.tagAlign.gz.
+Finished job 2.
+2 of 3 steps (67%) done
+
+localrule vanilla:
+    input: bigWig/test.filt.nodup.srt.bw, bam/test.filt.nodup.srt.bam, qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc
+    jobid: 0
+
+Finished job 0.
+3 of 3 steps (100%) done
+Sat Jul 29 14:54:58 PDT 2017 # Analysis finished

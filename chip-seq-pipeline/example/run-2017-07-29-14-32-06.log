@@ -1,0 +1,53 @@
+Sat Jul 29 14:32:06 PDT 2017 # Analysis Began
+Provided cluster nodes: 1000
+Job counts:
+	count	jobs
+	1	bam2bw
+	1	bam_finalize
+	1	phantom
+	1	vanilla
+	4
+
+rule bam_finalize:
+    input: bam/test.dupmark.bam, qc/test.dup.flagstat.qc
+    output: qc/test.filt.nodup.srt.flagstat.qc, bam/test.filt.nodup.srt.bam, qc/test.filt.nodup.srt.pbc.qc
+    jobid: 2
+    wildcards: sample=test
+
+samtools view -F 1804 -b bam/test.dupmark.bam > bam/test.filt.nodup.srt.bam;samtools index bam/test.filt.nodup.srt.bam;samtools flagstat bam/test.filt.nodup.srt.bam > qc/test.filt.nodup.srt.flagstat.qc;bedtools bamtobed -i bam/test.dupmark.bam |awk 'BEGIN{OFS="\t"}{print $1,$2,$3,$6}' |grep -v 'chrM' | sort -T tmp/test | uniq -c |awk 'BEGIN{mt=0;m0=0;m1=0;m2=0} ($1==1){m1=m1+1} ($1==2){m2=m2+1}{m0=m0+1}{mt=mt+$1} END{printf"%d\t%d\t%d\t%d\t%f\t%f\t%f\n",mt,m0,m1,m2,m0/mt,m1/m0,m1/m2}' > qc/test.filt.nodup.srt.pbc.qc
+Removing temporary output file bam/test.dupmark.bam.
+Finished job 2.
+1 of 4 steps (25%) done
+
+rule phantom:
+    input: bam/test.filt.nodup.srt.bam
+    output: test.filt.nodup.sample.15.0.SE.tagAlign.gz, qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc, test.filt.nodup.srt.SE.tagAlign.gz, qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.plot.pdf, qc/test.cc.temp
+    log: logs/phantompeak/test.phantom.log
+    jobid: 1
+    wildcards: sample=test
+
+bedtools bamtobed -i bam/test.filt.nodup.srt.bam | awk 'BEGIN{OFS="\t"}{$4="N";$5="1000";print $0}' | gzip -c > test.filt.nodup.srt.SE.tagAlign.gz;zcat test.filt.nodup.srt.SE.tagAlign.gz | grep -v "chrM" | shuf -n 15000000 |gzip -c > test.filt.nodup.sample.15.0.SE.tagAlign.gz;Rscript /home/shz254/Pipelines/chip-seq-pipeline/bin/../dependencies/run_spp_nodups.R -c=test.filt.nodup.sample.15.0.SE.tagAlign.gz -filtchr=chrM -savp=qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.plot.pdf -out=qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc -tmpdir=tmp/test -rf &> logs/phantompeak/test.phantom.log;sed -r 's/,[^\t]+//g' qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc > qc/test.cc.temp;cp qc/test.cc.temp qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc
+
+rule bam2bw:
+    input: bam/test.filt.nodup.srt.bam
+    output: bigWig/test.filt.nodup.srt.gs, bigWig/test.filt.nodup.srt.bw
+    jobid: 3
+    wildcards: sample=test
+
+ext_len=$(awk '{print $10;exit}' <(samtools view bam/test.filt.nodup.srt.bam)|awk '{print 300-length}');samtools view -H bam/test.filt.nodup.srt.bam | awk '$1 == "@SQ" {OFS="\t";print $2,$3}' - | sed 's/.N://g' > bigWig/test.filt.nodup.srt.gs;samtools view -b bam/test.filt.nodup.srt.bam | bedtools bamtobed |bedtools slop -s -l 0 -r $ext_len -i stdin -g bigWig/test.filt.nodup.srt.gs |bedtools genomecov -g bigWig/test.filt.nodup.srt.gs -i stdin -bg |/home/shz254/Pipelines/chip-seq-pipeline/bin/../dependencies/wigToBigWig stdin bigWig/test.filt.nodup.srt.gs bigWig/test.filt.nodup.srt.bw
+Removing temporary output file test.filt.nodup.srt.SE.tagAlign.gz.
+Removing temporary output file test.filt.nodup.sample.15.0.SE.tagAlign.gz.
+Removing temporary output file qc/test.cc.temp.
+Finished job 1.
+2 of 4 steps (50%) done
+Removing temporary output file bigWig/test.filt.nodup.srt.gs.
+Finished job 3.
+3 of 4 steps (75%) done
+
+localrule vanilla:
+    input: bigWig/test.filt.nodup.srt.bw, bam/test.filt.nodup.srt.bam, qc/test.filt.nodup.sample.15.0.SE.tagAlign.gz.cc.qc
+    jobid: 0
+
+Finished job 0.
+4 of 4 steps (100%) done
+Sat Jul 29 14:33:40 PDT 2017 # Analysis finished
